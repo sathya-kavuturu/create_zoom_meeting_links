@@ -73,42 +73,65 @@ def has_token_expired(access_token, issued_at=None):
 
 
 # create the Zoom link function
-def create_meeting(meeting_name, time, account):
+def create_meeting(meeting_name, time, account, duration, type):
         
+    if int(type) == 2:
+        payload = {
+        "default_password": "false",
+        "duration": duration,
+        "password": "12345",
+        "settings": {
+            "allow_multiple_devices": "false",
+            "approval_type": 0,
+            "audio": "voip",
+            "close_registration": "false",
+            "contact_email": account,
+            "contact_name": "Isha Foundation",
+            "encryption_type": "enhanced_encryption",
+            "focus_mode": "true",
+            "host_video": "false",
+            "mute_upon_entry": "true",
+            "participant_video": "true",
+            "registrants_confirmation_email": "false",
+            "registrants_email_notification": "false",
+            "show_share_button": "false",
+            "waiting_room": "true",
+            "continuous_meeting_chat": {
+            "enable": "true",
+            },
+        },
+        "start_time": time,
+        "timezone": "Asia/Calcutta",
+        "topic": meeting_name,
+        "type": type
+        }
 
-    payload = {
-"agenda": "My Meeting",
-"default_password": "false",
-"duration": 300,
-"password": "12345",
-"pre_schedule": "false",
-"settings": {
-    "allow_multiple_devices": "false",
-    "approval_type": 0,
-    "audio": "voip",
-    "authentication_option": "signIn_D8cJuqWVQ623CI4Q8yQK0Q",
-    "close_registration": "false",
-    "contact_email": "jchill@example.com",
-    "contact_name": "Jill Chill",
-    "email_notification": "true",
-    "encryption_type": "enhanced_encryption",
-    "focus_mode": "true",
-    "host_video": "false",
-    "mute_upon_entry": "true",
-    "participant_video": "true",
-    "registrants_confirmation_email": "false",
-    "registrants_email_notification": "false",
-    "show_share_button": "false",
-    "waiting_room": "true",
-    "continuous_meeting_chat": {
-    "enable": "true",
-    },
-},
-"start_time": time,
-"timezone": "Asia/Calcutta",
-"topic": meeting_name,
-"type": 2
-}
+    if int(type) == 3:
+        payload = {
+        "default_password": "false",
+        "password": "12345",
+        "settings": {
+            "allow_multiple_devices": "false",
+            "audio": "voip",
+            "contact_email": account,
+            "contact_name": "Isha Foundation",
+            "encryption_type": "enhanced_encryption",
+            "focus_mode": "true",
+            "host_video": "false",
+            "mute_upon_entry": "true",
+            "participant_video": "true",
+            "waiting_room": "true",
+            "continuous_meeting_chat": {
+            "enable": "true",
+            },
+        },
+        "timezone": "Asia/Calcutta",
+        "topic": meeting_name,
+        "type": type
+        }
+
+
+    
     access_token = get_access_token()
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -122,17 +145,7 @@ def create_meeting(meeting_name, time, account):
     if resp.status_code!=201:
         print("Unable to generate meeting link")
     response_data = resp.json()
-    # print(response_data)
-    # content = {
-    #             "meeting_url": response_data["join_url"], 
-    #             "password": response_data["password"],
-    #             "meetingTime": response_data["start_time"],
-    #             "purpose": response_data["topic"],
-    #             "duration": response_data["duration"],
-    #             "message": "Success",
-    #             "status":1
-    # }
-    # print(content)
+    
     return response_data
     
 
@@ -151,11 +164,18 @@ def create_meetings_from_excel():
     row_num = 2  # Start writing from row 2
     for row in input_sheet.iter_rows(min_row=2):  # Skip header row
         meeting_name = row[1].value  # Assuming meeting names are in column A
-        meeting_date = row[2].value.isoformat()  # Existing datetime object
         account = row[3].value # Email address in which meeting needs to be created
+        if row[5].value == "registration":
+            type = 2
+            duration = int(row[4].value)
+            meeting_date = row[2].value.isoformat()  # Existing datetime object
+        elif row[5].value == "recurring":
+            type = 3
+        else:
+            type = 3
         
         try:
-            meeting_details = create_meeting(meeting_name, meeting_date, account)
+            meeting_details = create_meeting(meeting_name, meeting_date, account, duration, type)
             meeting_name = meeting_details["topic"]
             meeting_link = meeting_details["join_url"]
             meeting_id = meeting_details["id"]
@@ -181,16 +201,20 @@ def delete_meeting(meetingId):
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
     }
-
-    resp = requests.delete(f"{api_base_url}/meetings/{meetingId}", 
-                            headers=headers, 
-                            )
+    resp = requests.delete(f"{api_base_url}/meetings/{meetingId}", headers=headers)
+                            
     
     if resp.status_code == 204:
-        print("Meeting with Id: {meetingId} deleted successfully")
+        print(f"Meeting with Id: {meetingId} deleted successfully")
     else:
         print("Failed to delete meeting:", resp.text)
     
         
-
-# delete_meeting('')
+def delete_meeting_from_excel():
+     input_workbook = xl.load_workbook("meeting_links.xlsx")  # Adjust file path
+     input_sheet = input_workbook["Sheet"]  # Adjust sheet name
+     for row in input_sheet.iter_rows(min_row=2):
+        meetingId = row[2].value
+        delete_meeting(meetingId)
+        
+# delete_meeting_from_excel()
